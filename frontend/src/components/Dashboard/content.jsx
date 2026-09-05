@@ -4,7 +4,8 @@ import { DashboardMenu } from "./DashboardMenu";
 import { HistoryView, ProfileView } from "./DashboardViews";
 import { ResultModal } from "./ResultModal";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:8000" : "/api")).replace(/\/$/, "");
+const MAX_UPLOAD_MB = import.meta.env.DEV ? 50 : 4;
 const MIN_SECONDS = 1;
 const MAX_SECONDS = 10;
 const READING_TEXT = "Take a comfortable breath and sustain the vowel aaa at a steady, natural pitch and volume. Do not sing, whisper, or force your voice.";
@@ -88,6 +89,10 @@ export const Content = ({ userData }) => {
       setError("Please choose a WAV audio file.");
       return;
     }
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setError(`Please upload a WAV file smaller than ${MAX_UPLOAD_MB} MB. Record 5–10 seconds of sustained aaa.`);
+      return;
+    }
     setError("");
     setResult(null);
     setStatus("Extracting voice biomarkers and running the screening model…");
@@ -95,6 +100,12 @@ export const Content = ({ userData }) => {
     formData.append("file", file);
     try {
       const response = await fetch(`${API_URL}/predict`, { method: "POST", body: formData });
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(response.status === 413
+          ? `Please upload a WAV file smaller than ${MAX_UPLOAD_MB} MB.`
+          : "The screening service is temporarily unavailable. Please try again shortly.");
+      }
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "The recording could not be analysed.");
       const report = createReportRecord(payload);
@@ -111,7 +122,7 @@ export const Content = ({ userData }) => {
       setStatus("");
     } catch (requestError) {
       setStatus("");
-      setError(requestError.message === "Failed to fetch" ? "Cannot reach the Svara analysis server. Please start the backend and try again." : requestError.message);
+      setError(requestError.message === "Failed to fetch" ? (import.meta.env.DEV ? "Cannot reach the Svara analysis server. Please start the backend and try again." : "Cannot reach the screening service. Please check your connection and try again.") : requestError.message);
     }
   };
 

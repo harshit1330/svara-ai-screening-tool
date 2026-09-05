@@ -1,0 +1,13 @@
+.git
+.venv
+**/node_modules
+**/dist
+**/__pycache__
+.run-logs
+test-recordings
+models/*.original.*
+*.wav
+*.log
+.env
+.env.*
+tests

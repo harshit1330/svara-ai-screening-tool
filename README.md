@@ -98,3 +98,16 @@ The backend flags scores of 0.5 or higher. `model_score` is the score for the Pa
 - **Microphone unavailable:** allow browser microphone access or upload WAV instead.
 - **No past reports on another computer:** history is stored in the browser that generated it.
 - **Hosted frontend:** configure `VITE_API_URL` to your backend and explicitly allow the frontend origin in the backend CORS settings. Do not place private credentials in frontend environment variables.
+
+## Deploy on Vercel
+
+Import this GitHub repository into Vercel with the Root Directory set to the repository root (not `frontend`). The root `vercel.json` defines the React frontend and Python FastAPI backend as Vercel Services under one HTTPS domain. Keep the service-specific build settings from that file.
+
+- The landing page is at `/`, with direct navigation to `/dashboard` supported.
+- Production requests use `/api/predict` on the same domain; no API URL environment variable is needed.
+- Verify `/api/health` returns `{"status":"healthy","model":"loaded"}`.
+- Python is pinned to 3.14 to match the deployed model's local environment.
+- The hosted app accepts WAV files up to 4 MB, leaving room for multipart upload overhead under Vercel's 4.5 MB request limit. Local development keeps its 50 MB limit.
+- The first screening after a cold start can take longer while the Python environment and model initialize.
+
+Alternatively, after `npx vercel login`, run `npx vercel --prod` from the repository root.

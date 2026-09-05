@@ -16,3 +16,6 @@ test-recordings/
 *.mp3
 *.mp4
 models/*.original.*
+.vercel/
+.vercel
+.env*

@@ -1,4 +1,5 @@
 """FastAPI application for Svara voice-pattern inference."""
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,8 @@ try:
 except ImportError:  # Supports `uvicorn main:app` when run inside backend/.
     from inference import InvalidAudioError, SvaraInferenceEngine
 
-MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_UPLOAD_MB = 4 if os.getenv("VERCEL") else 50
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 engine: SvaraInferenceEngine | None = None
 
 
@@ -37,12 +39,14 @@ app.add_middleware(
 )
 
 
-@app.get("/health")
+@app.get("/api/health")
+@app.get("/health", include_in_schema=False)
 def health() -> dict[str, str]:
     return {"status": "healthy", "model": "loaded" if engine is not None else "unavailable"}
 
 
-@app.post("/predict")
+@app.post("/api/predict")
+@app.post("/predict", include_in_schema=False)
 async def predict(file: UploadFile = File(...)) -> dict[str, str | float | bool]:
     if engine is None:
         raise HTTPException(503, "Model is not available")
@@ -55,7 +59,7 @@ async def predict(file: UploadFile = File(...)) -> dict[str, str | float | bool]
     audio_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     await file.close()
     if len(audio_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(413, "WAV file exceeds the 50 MB upload limit")
+        raise HTTPException(413, f"WAV file exceeds the {MAX_UPLOAD_MB} MB upload limit")
     try:
         return engine.predict_wav(audio_bytes)
     except InvalidAudioError as exc:
